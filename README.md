@@ -27,17 +27,20 @@ AIRBNB-main/
 │   ├── 01_eda_preprocessing.ipynb
 │   └── 02_model_training.ipynb
 │
-├── model.joblib
 ├── .gitignore
-└── README.md
+├── README.md
+└── requirements.txt
 ```
 
 ---
 
 ## 🧠 Model
-The trained model is stored as:
+The trained model is generated automatically when training is performed
+and saved locally as:
 ```
 model.joblib
+```
+This file is not included in the repository.
 ```
 
 ---
