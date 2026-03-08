@@ -1,6 +1,6 @@
 .venv
 ./venv/
-__pycache__/    
+__pycache__/
 *.pyc
 .DS_Store
 .env
@@ -13,7 +13,7 @@ airbnb.db
 .idea/
 .vscode/
 *.swp
-*.swo   
+*.swo
 node_modules/
 dist/
 build/
@@ -22,14 +22,15 @@ build/
 coverage
 html
 cov/
-.pyre/  
+.pyre/
 .pyre_configuration
 notes.md
 TRUSH/
 Models/
-# Ignore dataset files
-data/raw/*
-data/processed/*
+*.joblib
 *.pkl
 *.csv
-*.joblib
+
+!data/
+!data/raw/
+!data/raw/Airbnb_Open_Data.csv
