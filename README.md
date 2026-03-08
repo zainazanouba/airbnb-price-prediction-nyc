@@ -43,7 +43,7 @@ The trained model is generated during training and saved locally as:
 
 app/model.joblib
 
-This file is included so the prediction page can run directly without retraining.
+This file is included in the repository so that the prediction page can run directly without retraining the model first.
 
 
 ---
@@ -94,6 +94,11 @@ Scikit-learn
 Streamlit
 
 Joblib
+
+Matplotlib
+
+Seaborn
+
 
 
 ---
