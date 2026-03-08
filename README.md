@@ -1,9 +1,11 @@
-# Airbnb Price Prediction – New York
+Airbnb Price Prediction – New York
 
-## 📌 Project Overview
+📌 Project Overview
+
 This project focuses on predicting Airbnb listing prices in New York using machine learning techniques.
 
 The workflow includes:
+
 - Exploratory Data Analysis (EDA)
 - Data preprocessing and feature engineering
 - Model training and evaluation
@@ -11,17 +13,19 @@ The workflow includes:
 
 ---
 
-## 📂 Project Structure
+📂 Project Structure
 
-```
 AIRBNB-main/
 │
 ├── app/
-│   └── streamlit_app.py
+│   ├── streamlit_app.py
+│   └── model.joblib
 │
 ├── data/
 │   ├── raw/
+│   │   └── Airbnb_Open_Data.csv
 │   └── processed/
+│       └── airbnb_processed2.pkl
 │
 ├── notebooks/
 │   ├── 01_eda_preprocessing.ipynb
@@ -30,48 +34,43 @@ AIRBNB-main/
 ├── .gitignore
 ├── README.md
 └── requirements.txt
-```
 
 ---
 
-## 🧠 Model
-The trained model is generated automatically when training is performed
-and saved locally as:
-```
-model.joblib
-```
-This file is not included in the repository.
-```
+🧠 Model
+
+The trained machine learning model used by the Streamlit application is included in the repository.
+
+Location:
+
+app/model.joblib
 
 ---
 
-## 📊 Dataset
-The dataset is not included in this repository due to size constraints.
+📊 Dataset
 
-To reproduce the project:
-1. Download the Airbnb New York dataset from Kaggle.
-2. Place the raw dataset inside:
-```
-data/raw/
-```
+The dataset used for this project is already included in the repository.
+
+Location:
+
+data/raw/Airbnb_Open_Data.csv
 
 ---
 
-## 🚀 How to Run the Application
+🚀 How to Run the Application
 
 1. Install dependencies:
-```
+
 pip install -r requirements.txt
-```
 
 2. Run the Streamlit app:
-```
+
 streamlit run app/streamlit_app.py
-```
 
 ---
 
-## 🛠 Technologies Used
+🛠 Technologies Used
+
 - Python
 - Pandas
 - NumPy
@@ -81,8 +80,10 @@ streamlit run app/streamlit_app.py
 
 ---
 
-## 👩‍💻 Contributors
+👩‍💻 Contributors
+
 This project was developed collaboratively as part of an academic machine learning project.
 
 Primary contributor (repository maintainer):
+
 - Zainab Elkamit
