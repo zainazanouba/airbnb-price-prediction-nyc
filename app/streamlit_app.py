@@ -15,7 +15,7 @@ from sklearn.linear_model import Ridge
 from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-# Optional (only if installed)
+# Optional
 try:
     import seaborn as sns
     HAS_SNS = True
@@ -26,20 +26,26 @@ except Exception:
 # =============================================================================
 # PATHS
 # =============================================================================
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.abspath(__file__))   # .../AIRBNB-main/app
+ROOT = os.path.dirname(HERE)                        # .../AIRBNB-main
+
 DATA_CANDIDATES = [
-    os.path.join(HERE, "data", "raw", "Airbnb_Open_Data.csv"),
-    os.path.join(HERE, "data", "row", "Airbnb_Open_Data.csv"),
-    os.path.join(HERE, "data", "Airbnb_Open_Data.csv"),
+    os.path.join(ROOT, "data", "raw", "Airbnb_Open_Data.csv"),
+    os.path.join(ROOT, "data", "processed", "airbnb_processed2.pkl"),
+    os.path.join(ROOT, "data", "raw", "Airbnb_Open_Data.xlsx"),
+    os.path.join(ROOT, "data", "raw", "Airbnb_Open_Data.xls"),
     os.path.join(HERE, "Airbnb_Open_Data.csv"),
     os.path.join(HERE, "Airbnb_Open_Data.xlsx"),
     os.path.join(HERE, "Airbnb_Open_Data.xls"),
+    os.path.join(HERE, "data", "raw", "Airbnb_Open_Data.csv"),
+    os.path.join(HERE, "data", "Airbnb_Open_Data.csv"),
 ]
+
 MODEL_PATH = os.path.join(HERE, "model.joblib")
 
 
 # =============================================================================
-# APP CONFIG (pro + clean)
+# APP CONFIG
 # =============================================================================
 st.set_page_config(page_title="Airbnb NYC — Analyse & Prédiction", layout="wide")
 
@@ -62,7 +68,6 @@ st.caption("Application Streamlit pour explorer le dataset, analyser les variabl
 # UTILS
 # =============================================================================
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalise les noms de colonnes: lowercase + espaces normalisés."""
     df = df.copy()
     df.columns = (
         df.columns.astype(str)
@@ -74,7 +79,6 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_money_to_float(x):
-    """Convertit '$1,234.00' -> 1234.0 (robuste)."""
     if pd.isna(x):
         return np.nan
     if isinstance(x, (int, float, np.integer, np.floating)):
@@ -87,7 +91,6 @@ def clean_money_to_float(x):
 
 
 def parse_float_any(x):
-    """Accepte '40,72' ou '40.72'."""
     if x is None:
         return np.nan
     if isinstance(x, (int, float, np.integer, np.floating)):
@@ -132,10 +135,6 @@ def detect_columns(df: pd.DataFrame):
 
 
 def leakage_safe_drop(df: pd.DataFrame):
-    """
-    Evite la fuite (leakage) : supprime les colonnes liées au prix si présentes
-    (ex: 'service fee', 'price something').
-    """
     df = df.copy()
     drop_cols = []
     for c in df.columns:
@@ -190,7 +189,6 @@ def build_pipeline(num_features, cat_features, model_name: str, rf_estimators=40
     if model_name == "ridge":
         model = Ridge(alpha=1.0)
     elif model_name == "hgb":
-        # très bon compromis perf/vitesse sans dépendance externe (pas besoin de xgboost)
         model = HistGradientBoostingRegressor(
             random_state=42,
             max_depth=6,
@@ -217,7 +215,6 @@ def iqr_bounds(series, k=1.5):
 
 
 def safe_make_X(bundle, input_dict: dict) -> pd.DataFrame:
-    """Recrée X_new avec EXACTEMENT les features du training (ordre + colonnes)."""
     expected = bundle["expected_features"]
     num_feats = bundle["features_num"]
     cat_feats = bundle["features_cat"]
@@ -234,14 +231,12 @@ def safe_make_X(bundle, input_dict: dict) -> pd.DataFrame:
 
     for c in cat_feats:
         if c in X_new.columns:
-            # garde NaN si vide, sinon string
             X_new[c] = X_new[c].apply(lambda v: np.nan if (pd.isna(v) or str(v).strip() == "") else str(v))
 
     return X_new
 
 
 def safe_predict_price(bundle, X_new: pd.DataFrame):
-    """Prédiction stable: log_pred -> clip -> expm1."""
     pipe = bundle["pipeline"]
     log_pred = float(pipe.predict(X_new)[0])
 
@@ -259,24 +254,31 @@ def load_data():
         if os.path.exists(path):
             if path.lower().endswith(".csv"):
                 df_ = pd.read_csv(path, low_memory=False)
+            elif path.lower().endswith(".pkl"):
+                df_ = pd.read_pickle(path)
             else:
                 df_ = pd.read_excel(path)
+
             df_ = normalize_columns(df_)
             return df_, path
+
     return None, None
 
 
 # =============================================================================
-# LOAD DATA + BASIC PREP
+# LOAD DATA
 # =============================================================================
 df, used_path = load_data()
 if df is None:
-    st.error("Dataset introuvable. Place `Airbnb_Open_Data.csv` (ou .xlsx) dans le dossier `app/` ou `app/data/`.")
+    st.error(
+        "Dataset introuvable. Place `Airbnb_Open_Data.csv` dans `data/raw/` "
+        "ou `airbnb_processed2.pkl` dans `data/processed/`."
+    )
     st.stop()
 
 meta = detect_columns(df)
 if meta["price"] is None:
-    st.error("Colonne `price` introuvable après normalisation (lowercase).")
+    st.error("Colonne `price` introuvable après normalisation.")
     st.stop()
 
 df_base = df.copy()
@@ -289,11 +291,11 @@ df_safe, dropped_leak = leakage_safe_drop(df_valid)
 num_features, cat_features = get_ml_features(df_safe, meta)
 all_features = num_features + cat_features
 
-st.caption(f"Dataset: `{used_path}` • lignes: {len(df_safe):,} • variables: {df.shape[1]}".replace(",", " "))
+st.caption(f"Dataset chargé depuis : `{used_path}` • lignes : {len(df_safe):,} • variables : {df.shape[1]}".replace(",", " "))
 
 
 # =============================================================================
-# SIDEBAR NAV
+# SIDEBAR
 # =============================================================================
 page = st.sidebar.radio(
     "Navigation",
@@ -316,11 +318,11 @@ train_sample = st.sidebar.slider(
     int(min(20_000, len(df_safe))),
     1_000,
 )
-st.sidebar.caption("Conseil: commence en mode FAST pour entraîner rapidement.")
+st.sidebar.caption("Conseil : commence en mode FAST pour entraîner rapidement.")
 
 
 # =============================================================================
-# PAGE: PRESENTATION (PRO)
+# PRESENTATION
 # =============================================================================
 if page == "Présentation":
     st.subheader("Vue d’ensemble")
@@ -333,38 +335,38 @@ if page == "Présentation":
 
     st.markdown("### Objectif")
     st.write(
-        "Prédire le **prix d’une annonce Airbnb à New York** à partir de variables observables "
-        "(localisation, type de logement, disponibilité, avis…). "
-        "Pour stabiliser la variance du prix et limiter l’impact des valeurs extrêmes, "
-        "la cible utilisée pour l’apprentissage est `log1p(price)`."
+        "Prédire le prix d’une annonce Airbnb à New York à partir de variables observables "
+        "comme la localisation, le type de logement, la disponibilité et les avis. "
+        "La cible d’apprentissage est transformée avec `log1p(price)` pour réduire "
+        "l’effet des valeurs extrêmes et améliorer la stabilité du modèle."
     )
 
     st.markdown("### Méthodologie")
     st.markdown(
         """
-- **Nettoyage** : conversion du prix, suppression des valeurs invalides.
-- **Prétraitement** : imputation (médiane / mode), standardisation des variables numériques, encodage one-hot des catégories.
-- **Modélisation** : comparaison de plusieurs modèles (Ridge, RandomForest, Gradient Boosting).
-- **Évaluation** : R², MAE et RMSE (sur log, puis interprétation en dollars).
-- **Déploiement** : entraînement + sauvegarde du modèle et page de prédiction.
+- **Nettoyage des données** : conversion du prix, suppression des valeurs invalides.
+- **Prétraitement** : imputation des valeurs manquantes, standardisation des variables numériques, encodage one-hot des catégories.
+- **Modélisation** : comparaison de plusieurs modèles de régression.
+- **Évaluation** : R², RMSE et MAE sur l’échelle logarithmique puis en dollars.
+- **Déploiement** : interface Streamlit pour explorer, entraîner et prédire.
         """
     )
 
     if dropped_leak:
         st.info("Variables supprimées pour éviter la fuite d’information : " + ", ".join(dropped_leak))
 
-    with st.expander("Limites et pistes d’amélioration"):
+    with st.expander("Limites et perspectives"):
         st.markdown(
             """
-- Le dataset peut contenir du bruit, des valeurs manquantes et des catégories rares.
-- Certains facteurs réels ne sont pas inclus (qualité des photos, réputation, saisonnalité, événements…).
-- Pour améliorer les performances, on peut tester des modèles plus puissants (Gradient Boosting, XGBoost/LightGBM si autorisé).
+- Le dataset contient des valeurs manquantes, des variables rares et des outliers.
+- Certains facteurs influençant le prix ne sont pas présents dans les données.
+- Des modèles supplémentaires comme XGBoost ou LightGBM pourraient être testés dans une version avancée.
             """
         )
 
 
 # =============================================================================
-# PAGE: DATASET
+# DATASET
 # =============================================================================
 elif page == "Dataset":
     st.subheader("Exploration du dataset")
@@ -385,15 +387,15 @@ elif page == "Dataset":
     st.dataframe(df.head(40), use_container_width=True)
 
     st.markdown("### Variables utilisées par le modèle")
-    st.write("**Numériques**:", num_features if num_features else "—")
-    st.write("**Catégorielles**:", cat_features if cat_features else "—")
+    st.write("**Numériques :**", num_features if num_features else "—")
+    st.write("**Catégorielles :**", cat_features if cat_features else "—")
 
 
 # =============================================================================
-# PAGE: EDA COMPLET
+# EDA
 # =============================================================================
 elif page == "EDA (complet)":
-    st.subheader("Analyse exploratoire (EDA)")
+    st.subheader("Analyse exploratoire des données")
 
     if df_safe.empty:
         st.error("Pas de lignes exploitables après nettoyage.")
@@ -401,7 +403,6 @@ elif page == "EDA (complet)":
 
     df_eda = df_safe.sample(eda_sample, random_state=42) if len(df_safe) > eda_sample else df_safe.copy()
 
-    # Filters
     st.markdown("### Filtres")
     borough_col = meta.get("neigh_group")
     room_col = meta.get("room")
@@ -428,7 +429,6 @@ elif page == "EDA (complet)":
 
     st.caption(f"EDA sur {len(df_f):,} lignes".replace(",", " "))
 
-    # 1) Price distribution
     st.markdown("---")
     st.markdown("## 1) Distribution du prix")
     fig = plt.figure(figsize=(11, 4))
@@ -455,7 +455,6 @@ elif page == "EDA (complet)":
         c2.metric("Seuil IQR haut", f"{high:,.1f}$")
         c3.metric("Outliers (IQR)", f"{out_rate:.2f}%")
 
-    # 2) Categories vs price
     st.markdown("---")
     st.markdown("## 2) Variables catégorielles")
     if room_col and room_col in df_f.columns:
@@ -510,7 +509,6 @@ elif page == "EDA (complet)":
         plt.tight_layout()
         st.pyplot(fig)
 
-    # 3) Numeric vs price
     st.markdown("---")
     st.markdown("## 3) Variables numériques vs prix")
     candidates_num = [meta.get("min_nights"), meta.get("n_reviews"), meta.get("rpm"), meta.get("avail"), meta.get("year")]
@@ -528,9 +526,8 @@ elif page == "EDA (complet)":
         plt.tight_layout()
         st.pyplot(fig)
 
-    # 4) Correlation
     st.markdown("---")
-    st.markdown("## 4) Corrélations (numériques)")
+    st.markdown("## 4) Corrélations numériques")
     num_only = df_f.select_dtypes(include=[np.number])
     if num_only.shape[1] >= 2:
         corr = num_only.corr(numeric_only=True)
@@ -550,38 +547,37 @@ elif page == "EDA (complet)":
             plt.tight_layout()
             st.pyplot(fig)
 
-    # 5) Geo
     st.markdown("---")
-    st.markdown("## 5) Dimension géographique")
+    st.markdown("## 5) Analyse géographique")
     lat_col, lon_col = meta.get("lat"), meta.get("lon")
     if lat_col and lon_col and lat_col in df_f.columns and lon_col in df_f.columns:
         map_df = df_f[[lat_col, lon_col]].dropna().rename(columns={lat_col: "lat", lon_col: "lon"})
         st.map(map_df.head(10_000))
-        st.caption("Carte (échantillon) : affichage des points lat/lon.")
+        st.caption("Carte (échantillon) : affichage des points géographiques.")
     else:
         st.info("Colonnes latitude/longitude non trouvées.")
 
 
 # =============================================================================
-# PAGE: PRETRAITEMENT
+# PRETRAITEMENT
 # =============================================================================
 elif page == "Prétraitement":
-    st.subheader("Prétraitement (pipeline)")
+    st.subheader("Prétraitement des données")
 
     if not all_features:
-        st.error("Aucune feature ML reconnue. Vérifie les colonnes.")
+        st.error("Aucune feature reconnue pour l’apprentissage.")
         st.stop()
 
     st.markdown("### Variables utilisées")
     st.write("**Numériques :**", num_features)
     st.write("**Catégorielles :**", cat_features)
 
-    st.markdown("### Transformations")
+    st.markdown("### Transformations appliquées")
     st.markdown(
         """
-- **Numériques** : imputation par la médiane + standardisation (utile pour Ridge).
-- **Catégorielles** : imputation par la modalité la plus fréquente + encodage One-Hot.
-- **Robustesse production** : `handle_unknown='ignore'` évite les erreurs si une nouvelle catégorie apparaît.
+- **Variables numériques** : imputation par la médiane puis standardisation.
+- **Variables catégorielles** : imputation par la modalité la plus fréquente puis encodage One-Hot.
+- **Robustesse** : gestion des catégories inconnues pour éviter les erreurs lors de la prédiction.
         """
     )
 
@@ -590,16 +586,16 @@ elif page == "Prétraitement":
 
 
 # =============================================================================
-# PAGE: MODELISATION
+# MODELISATION
 # =============================================================================
 elif page == "Modélisation":
-    st.subheader("Entraînement & sauvegarde du modèle")
+    st.subheader("Entraînement et sauvegarde du modèle")
 
     if not all_features:
-        st.error("Aucune feature ML reconnue. Vérifie les colonnes du dataset.")
+        st.error("Aucune feature ML reconnue.")
         st.stop()
 
-    st.info("Conseil : commence avec **Ridge** (très rapide), puis teste **Gradient Boosting** ou **RandomForest**.")
+    st.info("Commence par **Ridge** pour un test rapide, puis compare avec les autres modèles.")
 
     model_choice = st.selectbox("Modèle", ["Ridge", "Gradient Boosting (rapide)", "RandomForest"])
     mode = st.radio("Mode d'entraînement", ["FAST (échantillon)", "FULL (plus lent)"], horizontal=True)
@@ -609,7 +605,6 @@ elif page == "Modélisation":
     if model_choice == "RandomForest":
         rf_estimators = st.slider("n_estimators", 200, 900, 350 if mode.startswith("FAST") else 500, 50)
 
-    # Data for training
     df_train = df_safe.copy()
 
     if mode.startswith("FAST"):
@@ -619,7 +614,6 @@ elif page == "Modélisation":
     X = df_train[all_features].copy()
     y = df_train["log_price"].copy()
 
-    # default stats for prediction page
     train_num_median = X[num_features].median(numeric_only=True).to_dict() if num_features else {}
     train_cat_mode = {}
     for c in cat_features:
@@ -645,7 +639,6 @@ elif page == "Modélisation":
             pipe.fit(X_train, y_train)
             pred_log = pipe.predict(X_test)
 
-        # Metrics
         r2 = float(r2_score(y_test, pred_log))
         rmse_log = float(np.sqrt(mean_squared_error(y_test, pred_log)))
         mae_log = float(mean_absolute_error(y_test, pred_log))
@@ -666,12 +659,11 @@ elif page == "Modélisation":
         c5.metric("RMSE ($)", f"{rmse_d:,.2f}".replace(",", " "))
         c6.metric("MAE ($)", f"{mae_d:,.2f}".replace(",", " "))
 
-        # Save bundle
         bundle = {
             "pipeline": pipe,
             "features_num": num_features,
             "features_cat": cat_features,
-            "expected_features": all_features,  # order matters
+            "expected_features": all_features,
             "y_min": float(np.min(y_train)),
             "y_max": float(np.max(y_train)),
             "trained_rows": int(len(df_train)),
@@ -682,7 +674,6 @@ elif page == "Modélisation":
         joblib.dump(bundle, MODEL_PATH)
         st.success(f"Modèle sauvegardé : `{MODEL_PATH}`")
 
-        # Diagnostics plot (fixes ndarray/.values issue)
         k = min(800, len(y_true))
         rng = np.random.RandomState(42)
         idx = rng.choice(len(y_true), size=k, replace=False) if len(y_true) > k else np.arange(len(y_true))
@@ -702,7 +693,7 @@ elif page == "Modélisation":
 
 
 # =============================================================================
-# PAGE: PREDICTION
+# PREDICTION
 # =============================================================================
 elif page == "Prédiction":
     st.subheader("Prédire le prix d’une annonce")
@@ -716,30 +707,29 @@ elif page == "Prédiction":
     cat_features_b = bundle["features_cat"]
 
     st.success(
-        f"Modèle chargé : **{bundle.get('model_name','—')}** • entraîné sur **{bundle.get('trained_rows','?')}** lignes"
+        f"Modèle chargé : **{bundle.get('model_name', '—')}** • entraîné sur **{bundle.get('trained_rows', '?')}** lignes"
     )
 
-    # Defaults
     num_defaults = bundle.get("train_num_median", {})
     cat_defaults = bundle.get("train_cat_mode", {})
 
-    # Helper: quick example from dataset
-    with st.expander("Insérer un exemple depuis le dataset"):
-        if st.button("Remplir avec une annonce aléatoire"):
-            row = df_safe.sample(1, random_state=int(time.time()) % 10_000)[all_features].iloc[0].to_dict()
+    with st.expander("Remplir avec un exemple du dataset"):
+        if st.button("Insérer une annonce aléatoire"):
+            row = df_safe.sample(1, random_state=int(time.time()) % 10000)[all_features].iloc[0].to_dict()
             st.session_state["_example_row"] = row
-        st.caption("Cela remplit automatiquement le formulaire avec des valeurs réalistes.")
+        st.caption("Le formulaire sera rempli automatiquement avec des valeurs réalistes.")
 
     example_row = st.session_state.get("_example_row", {})
 
     st.markdown("### Saisie")
-    st.markdown('<div class="small-muted">Les champs vides seront imputés automatiquement (médiane/mode).</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="small-muted">Les champs vides seront imputés automatiquement.</div>',
+        unsafe_allow_html=True
+    )
 
-    # Build category options from dataset (limited for speed)
     cat_options = {}
     for c in cat_features_b:
         s = df_safe[c].dropna().astype(str)
-        # limit options to avoid huge dropdowns
         opts = sorted(s.unique().tolist())
         if len(opts) > 200:
             opts = opts[:200]
@@ -750,7 +740,7 @@ elif page == "Prédiction":
     left, right = st.columns(2)
 
     with left:
-        st.markdown("#### Numériques")
+        st.markdown("#### Variables numériques")
         for c in num_features_b:
             default = example_row.get(c, num_defaults.get(c, np.nan))
             default_str = "" if pd.isna(default) else f"{float(default):.4f}"
@@ -758,12 +748,12 @@ elif page == "Prédiction":
             input_dict[c] = parse_float_any(val)
 
     with right:
-        st.markdown("#### Catégorielles")
+        st.markdown("#### Variables catégorielles")
         for c in cat_features_b:
             default = example_row.get(c, cat_defaults.get(c, ""))
             opts = cat_options.get(c, [""])
             if str(default) not in opts:
-                opts = [str(default)] + opts  # ensure default is selectable
+                opts = [str(default)] + opts
             sel = st.selectbox(c, options=opts, index=opts.index(str(default)) if str(default) in opts else 0)
             input_dict[c] = sel
 
