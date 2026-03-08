@@ -1,11 +1,9 @@
-Airbnb Price Prediction – New York
+# Airbnb Price Prediction – New York
 
-📌 Project Overview
-
+## 📌 Project Overview
 This project focuses on predicting Airbnb listing prices in New York using machine learning techniques.
 
 The workflow includes:
-
 - Exploratory Data Analysis (EDA)
 - Data preprocessing and feature engineering
 - Model training and evaluation
@@ -13,8 +11,9 @@ The workflow includes:
 
 ---
 
-📂 Project Structure
+## 📂 Project Structure
 
+```text
 AIRBNB-main/
 │
 ├── app/
@@ -35,25 +34,33 @@ AIRBNB-main/
 ├── README.md
 └── requirements.txt
 
+
 ---
 
 🧠 Model
 
-The trained machine learning model used by the Streamlit application is included in the repository.
-
-Location:
+The trained model is generated during training and saved locally as:
 
 app/model.joblib
+
+This file is included so the prediction page can run directly without retraining.
+
 
 ---
 
 📊 Dataset
 
-The dataset used for this project is already included in the repository.
+The dataset used in this project is included in the repository.
 
-Location:
+Files used:
 
-data/raw/Airbnb_Open_Data.csv
+Raw dataset: data/raw/Airbnb_Open_Data.csv
+
+Processed dataset: data/processed/airbnb_processed2.pkl
+
+
+This allows the application and notebooks to run with the existing project structure.
+
 
 ---
 
@@ -61,22 +68,34 @@ data/raw/Airbnb_Open_Data.csv
 
 1. Install dependencies:
 
+
+
 pip install -r requirements.txt
 
 2. Run the Streamlit app:
 
+
+
 streamlit run app/streamlit_app.py
+
 
 ---
 
 🛠 Technologies Used
 
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- Streamlit
-- Joblib
+Python
+
+Pandas
+
+NumPy
+
+Scikit-learn
+
+Streamlit
+
+Joblib
+
+
 
 ---
 
@@ -86,4 +105,4 @@ This project was developed collaboratively as part of an academic machine learni
 
 Primary contributor (repository maintainer):
 
-- Zainab Elkamit
+Zainab Elkamit
